@@ -1,0 +1,73 @@
+# All services build from the repository root so shared workspaces are available.
+services:
+  - type: web
+    name: usmle-api
+    branch: main
+    autoDeployTrigger: checksPass
+    runtime: node
+    plan: free
+    # Free web services do not support preDeployCommand. Apply migrations last.
+    buildCommand: npm ci --include=dev && npm run build -w @usmle/shared && npm run build -w @usmle/api && npm run db:migrate
+    startCommand: npm run start -w @usmle/api
+    healthCheckPath: /ready
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: API_KEY
+        generateValue: true
+      - key: API_ADMIN_KEY
+        generateValue: true
+  - type: web
+    name: usmle-bff
+    branch: main
+    autoDeployTrigger: checksPass
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build -w @usmle/shared && npm run build -w @usmle/bff
+    startCommand: npm run start -w @usmle/bff
+    healthCheckPath: /ready
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: NODE_ENV
+        value: production
+      - key: WEB_ORIGIN
+        sync: false
+      - key: API_BASE_URL
+        fromService:
+          name: usmle-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: API_TIMEOUT_MS
+        value: 8000
+      - key: API_KEY
+        fromService:
+          name: usmle-api
+          type: web
+          envVarKey: API_KEY
+  - type: web
+    name: usmle-web
+    branch: main
+    autoDeployTrigger: checksPass
+    runtime: static
+    # Static sites are free; omit plan (compute plans apply to Node services).
+    buildCommand: npm ci --include=dev && npm run build -w @usmle/shared && npm run build -w @usmle/web
+    staticPublishPath: apps/web/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: VITE_BFF_URL
+        fromService:
+          name: usmle-bff
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

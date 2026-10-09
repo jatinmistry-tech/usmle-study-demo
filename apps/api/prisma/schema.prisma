@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model User {
+  id          String   @id @default(uuid()) @map("Id") @db.Uuid
+  name        String   @map("Name") @db.VarChar(200)
+  email       String   @unique @map("Email") @db.VarChar(320)
+  createdDate DateTime @default(now()) @map("CreatedDate") @db.Timestamptz(3)
+  attempts    UserQuestionAttempt[]
+  bookmarks   Bookmark[]
+
+  @@map("Users")
+}
+
+model Subject {
+  id     String  @id @default(uuid()) @map("Id") @db.Uuid
+  name   String  @map("Name") @db.VarChar(100)
+  topics Topic[]
+
+  @@map("Subjects")
+}
+
+model Topic {
+  id        String   @id @default(uuid()) @map("Id") @db.Uuid
+  subjectId String   @map("SubjectId") @db.Uuid
+  name      String   @map("Name") @db.VarChar(200)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  questions Question[]
+
+  @@index([subjectId])
+  @@map("Topics")
+}
+
+model Question {
+  id           String     @id @default(uuid()) @map("Id") @db.Uuid
+  topicId      String     @map("TopicId") @db.Uuid
+  questionText String     @map("QuestionText") @db.Text
+  explanation  String     @map("Explanation") @db.Text
+  difficulty   Difficulty @default(MEDIUM) @map("Difficulty")
+  createdDate  DateTime   @default(now()) @map("CreatedDate") @db.Timestamptz(3)
+  topic        Topic      @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  options      QuestionOption[]
+  attempts     UserQuestionAttempt[]
+  bookmarks    Bookmark[]
+
+  @@index([topicId, difficulty])
+  @@index([createdDate])
+  @@map("Questions")
+}
+
+model QuestionOption {
+  id         String   @id @default(uuid()) @map("Id") @db.Uuid
+  questionId String   @map("QuestionId") @db.Uuid
+  optionText String   @map("OptionText") @db.Text
+  isCorrect  Boolean  @default(false) @map("IsCorrect")
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedIn UserQuestionAttempt[] @relation("SelectedOption")
+
+  // Supports a composite FK that also proves the selected option belongs to the question.
+  @@unique([id, questionId])
+  @@index([questionId])
+  @@map("QuestionOptions")
+}
+
+model UserQuestionAttempt {
+  id             String   @id @default(uuid()) @map("Id") @db.Uuid
+  userId         String   @map("UserId") @db.Uuid
+  questionId     String   @map("QuestionId") @db.Uuid
+  selectedAnswer String   @map("SelectedAnswer") @db.Uuid
+  isCorrect      Boolean  @map("IsCorrect")
+  timeTaken      Int      @map("TimeTaken") // Whole seconds; nonnegative CHECK in migration.
+  attemptedAt    DateTime @default(now()) @map("AttemptedAt") @db.Timestamptz(3)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOption QuestionOption @relation("SelectedOption", fields: [selectedAnswer, questionId], references: [id, questionId], onDelete: Restrict)
+
+  @@index([userId, attemptedAt])
+  @@index([userId, questionId, attemptedAt])
+  @@index([questionId])
+  @@index([selectedAnswer, questionId])
+  @@map("UserQuestionAttempts")
+}
+
+model Bookmark {
+  id         String   @id @default(uuid()) @map("Id") @db.Uuid
+  userId     String   @map("UserId") @db.Uuid
+  questionId String   @map("QuestionId") @db.Uuid
+  createdAt  DateTime @default(now()) @map("CreatedAt") @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, questionId])
+  @@index([questionId])
+  @@map("Bookmarks")
+}

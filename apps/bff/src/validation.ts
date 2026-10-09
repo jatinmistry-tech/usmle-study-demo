@@ -1,0 +1,20 @@
+import { z } from 'zod';
+export const uuid = z.uuid().transform(value => value.toLowerCase());
+export const idParams = z.strictObject({ id: uuid });
+export const optionParams = z.strictObject({ id: uuid, questionId: uuid });
+export const questionParams = z.strictObject({ questionId: uuid });
+export const sessionId = z.uuidv4().transform(value => value.toLowerCase());
+export const emptyQuery = z.strictObject({});
+const positive = (max: number) => z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(max));
+export const pageQuery = z.strictObject({ page: positive(10000).default(1), limit: positive(100).default(50) });
+export const topicQuery = pageQuery.extend({ subjectId: uuid.optional() });
+export const questionQuery = pageQuery.extend({ subjectId: uuid.optional(), topicId: uuid.optional(), difficulty: z.enum(['EASY', 'MEDIUM', 'HARD']).optional() });
+export const attemptQuery = pageQuery.extend({ questionId: uuid.optional() });
+export const answerInput = z.strictObject({ questionId: uuid, optionId: uuid, timeTaken: z.number().int().min(0).max(2147483647).default(0) });
+export const bookmarkInput = z.strictObject({ questionId: uuid });
+export const pageResponse = z.object({ data: z.array(z.unknown()), pagination: z.object({ total: z.number().int().nonnegative() }) });
+
+const count = z.number().int().nonnegative();
+export const progressResponse = z.object({ answered: count, correct: count, accuracy: z.number().min(0).max(100) });
+const metrics = z.object({ totalAttempts: count, correctAttempts: count, questionsAnswered: count, accuracy: z.number().min(0).max(100), averageTimeTaken: z.number().nonnegative() });
+export const performanceResponse = metrics.extend({ bySubject: z.array(metrics.extend({ id: uuid, name: z.string() })), byTopic: z.array(metrics.extend({ id: uuid, name: z.string() })) });
