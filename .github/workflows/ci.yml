@@ -29,6 +29,11 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install dependencies
         run: npm ci --include=dev
+      - name: Install Rolldown Linux native binding
+        run: |
+          ROLLDOWN_VERSION=$(node -p "require('rolldown/package.json').version")
+          npm install --no-save --package-lock=false \
+            "@rolldown/binding-linux-x64-gnu@$ROLLDOWN_VERSION" 
       - name: Generate Prisma Client
         run: npm run db:generate
       - name: Validate Prisma schema
