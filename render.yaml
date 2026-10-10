@@ -1,9 +1,9 @@
 # All services build from the repository root so shared workspaces are available.
 services:
   - type: web
-    name: usmle-api
+    name: usmle-qa-api
     branch: main
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: false
     runtime: node
     plan: free
     # Free web services do not support preDeployCommand. Apply migrations last.
@@ -24,9 +24,9 @@ services:
       - key: API_ADMIN_KEY
         generateValue: true
   - type: web
-    name: usmle-bff
+    name: usmle-qa-bff
     branch: main
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: false
     runtime: node
     plan: free
     buildCommand: npm ci --include=dev && npm run build -w @usmle/shared && npm run build -w @usmle/bff
@@ -41,7 +41,7 @@ services:
         sync: false
       - key: API_BASE_URL
         fromService:
-          name: usmle-api
+          name: usmle-qa-api
           type: web
           envVarKey: RENDER_EXTERNAL_URL
       - key: API_TIMEOUT_MS
@@ -52,9 +52,9 @@ services:
           type: web
           envVarKey: API_KEY
   - type: web
-    name: usmle-web
+    name: usmle-qa-web
     branch: main
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: false
     runtime: static
     # Static sites are free; omit plan (compute plans apply to Node services).
     buildCommand: npm ci --include=dev && npm run build -w @usmle/shared && npm run build -w @usmle/web
@@ -66,8 +66,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 24
+      - key: VITE_USE_MOCK_DATA
+        value: "false"
       - key: VITE_BFF_URL
         fromService:
-          name: usmle-bff
+          name: usmle-qa-bff
           type: web
           envVarKey: RENDER_EXTERNAL_URL
